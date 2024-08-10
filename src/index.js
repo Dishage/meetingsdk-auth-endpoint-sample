@@ -6,7 +6,6 @@ import { inNumberArray, isBetween, isRequiredAllOrNone, validateRequest } from '
 
 dotenv.config()
 const app = express()
-const port = process.env.PORT || 4000
 
 app.use(express.json(), cors())
 app.options('*', cors())
@@ -55,4 +54,13 @@ app.post('/', (req, res) => {
   return res.json({ signature: sdkJWT })
 })
 
-app.listen(port, () => console.log(`Zoom Meeting SDK Auth Endpoint Sample Node.js, listening on port ${port}!`))
+// Only use app.listen in development, not on Vercel
+if (process.env.NODE_ENV !== 'production') {
+  const port = process.env.PORT || 4000
+  app.listen(port, () => {
+    console.log(`Zoom Meeting SDK Auth Endpoint Sample Node.js, listening on port ${port}!`)
+  })
+}
+
+// Export the Express app for Vercel
+export default app

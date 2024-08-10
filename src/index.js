@@ -25,7 +25,16 @@ const coerceRequestBody = (body) => ({
   )
 })
 
-app.post('/', (req, res) => {
+// Middleware to check for API key
+const checkApiKey = (req, res, next) => {
+  const apiKey = req.get('X-API-Key')
+  if (!apiKey || apiKey !== process.env.API_KEY) {
+    return res.status(401).json({ error: 'Invalid or missing API key' })
+  }
+  next()
+}
+
+app.post('/', checkApiKey, (req, res) => {
   const requestBody = coerceRequestBody(req.body)
   const validationErrors = validateRequest(requestBody, propValidations, schemaValidations)
 

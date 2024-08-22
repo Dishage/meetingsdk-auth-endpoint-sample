@@ -34,11 +34,12 @@ app.use(express.json())
 
 // Rate limiting middleware
 const rateLimitMiddleware = async (req, res, next) => {
-  const identifier = req.ip ?? '127.0.0.1'
+  const identifier = req.headers['x-forwarded-for'] || req.ip // Use 'x-forwarded-for' if available
+  const requestUrl = req.originalUrl || req.url // Fallback to req.url if originalUrl isn't set
   const result = await ratelimit.limit(identifier)
 
   if (!result.success) {
-    console.log(`Rate limit exceeded for ${identifier} IP Address: ${identifier}`)
+    console.log(`Rate limit exceeded for ${requestUrl} IP Address: ${identifier}`)
     // Offload the fetch request to a serverless function or background worker instead
     try {
       await fetch(
@@ -49,7 +50,7 @@ const rateLimitMiddleware = async (req, res, next) => {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            content: `Limit triggered for: ${request.url} IP Address: ${identifier}`,
+            content: `Limit triggered for: ${requestUrl} IP Address: ${identifier}`,
             username: 'IP Bot'
           })
         }

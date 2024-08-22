@@ -3,18 +3,44 @@ import dotenv from 'dotenv'
 import express from 'express'
 import { KJUR } from 'jsrsasign'
 import { inNumberArray, isBetween, isRequiredAllOrNone, validateRequest } from './validations.js'
+import { kv } from '@vercel/kv'
+import { Ratelimit } from '@upstash/ratelimit'
 
 dotenv.config()
 const app = express()
 
+// Create a new ratelimiter, that allows 15 requests per 10 seconds
+const ratelimit = new Ratelimit({
+  redis: kv, // Use Vercel KV for storage
+  limiter: Ratelimit.slidingWindow(15, '10s')
+})
+
+// Rate limiting middleware
+const rateLimitMiddleware = async (req, res, next) => {
+  console.log('Middleware triggered for:', req.url)
+  const identifier = req.ip ?? '127.0.0.1'
+  const result = await ratelimit.limit(identifier)
+
+  if (!result.success) {
+    return res.status(429).json({
+      success: false,
+      message: 'Rate limit exceeded'
+    })
+  }
+
+  res.setHeader('X-RateLimit-Limit', result.limit)
+  res.setHeader('X-RateLimit-Remaining', result.remaining)
+  next()
+}
+
 app.use(express.json(), cors())
 app.options('*', cors())
+app.use(rateLimitMiddleware)
 
 const propValidations = {
   role: inNumberArray([0, 1]),
   expirationSeconds: isBetween(1800, 172800)
 }
-
 const schemaValidations = [isRequiredAllOrNone(['meetingNumber', 'role'])]
 
 const coerceRequestBody = (body) => ({
@@ -37,16 +63,13 @@ const checkApiKey = (req, res, next) => {
 app.post('/', checkApiKey, (req, res) => {
   const requestBody = coerceRequestBody(req.body)
   const validationErrors = validateRequest(requestBody, propValidations, schemaValidations)
-
   if (validationErrors.length > 0) {
     return res.status(400).json({ errors: validationErrors })
   }
-
   const { meetingNumber, role, expirationSeconds } = requestBody
   const iat = Math.floor(Date.now() / 1000)
   const exp = expirationSeconds ? iat + expirationSeconds : iat + 60 * 60 * 2
   const oHeader = { alg: 'HS256', typ: 'JWT' }
-
   const oPayload = {
     appKey: process.env.ZOOM_MEETING_SDK_KEY,
     sdkKey: process.env.ZOOM_MEETING_SDK_KEY,
@@ -56,7 +79,6 @@ app.post('/', checkApiKey, (req, res) => {
     exp,
     tokenExp: exp
   }
-
   const sHeader = JSON.stringify(oHeader)
   const sPayload = JSON.stringify(oPayload)
   const sdkJWT = KJUR.jws.JWS.sign('HS256', sHeader, sPayload, process.env.ZOOM_MEETING_SDK_SECRET)
@@ -71,5 +93,4 @@ if (process.env.NODE_ENV !== 'production') {
   })
 }
 
-// Export the Express app for Vercel
 export default app

@@ -11,13 +11,29 @@ const app = express()
 
 // Create a new ratelimiter, that allows 15 requests per 10 seconds
 const ratelimit = new Ratelimit({
-  redis: kv, // Use Vercel KV for storage
+  redis: kv,
   limiter: Ratelimit.slidingWindow(15, '10s')
 })
 
+// CORS configuration
+const corsOptions = {
+  origin: ['https://staff.elitetuition.com.au'], // Add other allowed origins if needed
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'X-API-Key'],
+  credentials: true,
+  optionsSuccessStatus: 204
+}
+
+// Apply CORS middleware
+app.use(cors(corsOptions))
+
+// Handle preflight requests
+app.options('*', cors(corsOptions))
+
+app.use(express.json())
+
 // Rate limiting middleware
 const rateLimitMiddleware = async (req, res, next) => {
-  console.log('Middleware triggered for:', req.url)
   const identifier = req.ip ?? '127.0.0.1'
   const result = await ratelimit.limit(identifier)
 
@@ -33,8 +49,6 @@ const rateLimitMiddleware = async (req, res, next) => {
   next()
 }
 
-app.use(express.json(), cors())
-app.options('*', cors())
 app.use(rateLimitMiddleware)
 
 const propValidations = {

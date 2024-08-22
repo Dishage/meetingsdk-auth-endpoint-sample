@@ -38,6 +38,25 @@ const rateLimitMiddleware = async (req, res, next) => {
   const result = await ratelimit.limit(identifier)
 
   if (!result.success) {
+    console.log(`Rate limit exceeded for ${identifier} IP Address: ${identifier}`)
+    // Offload the fetch request to a serverless function or background worker instead
+    try {
+      await fetch(
+        'https://discord.com/api/webhooks/1189011490733301781/xC9ZriwRbrH9oE7vcswSLQ0ekks7cdE29st-dlFQHQikX8tSki0SV-B4N_J80Nz4Bc4-',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            content: `Limit triggered for: ${request.url} IP Address: ${identifier}`,
+            username: 'IP Bot'
+          })
+        }
+      )
+    } catch (error) {
+      console.error('Failed to send webhook:', error)
+    }
     return res.status(429).json({
       success: false,
       message: 'Rate limit exceeded'

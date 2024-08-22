@@ -51,7 +51,7 @@ const rateLimitMiddleware = async (req, res, next) => {
           },
           body: JSON.stringify({
             content: `Limit triggered for: ${requestUrl} IP Address: ${identifier}`,
-            username: 'IP Bot'
+            username: 'IP Bot - Zoom Meeting SDK Auth Endpoint'
           })
         }
       )

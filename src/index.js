@@ -17,7 +17,13 @@ const ratelimit = new Ratelimit({
 
 // CORS configuration
 const corsOptions = {
-  origin: ['https://staff.elitetuition.com.au'], // Add other allowed origins if needed
+  origin: [
+    'https://staff.elitetuition.com.au',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001'
+  ], // Add other allowed origins if needed
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'X-API-Key'],
   credentials: true,
